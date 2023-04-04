@@ -109,7 +109,8 @@ class Game {
 
                 while (true) {
                     //output.writeObject(gameState);
-                    handlePlayerMove((ClientMessage) input.readObject());
+                    //handlePlayerMove((ClientMessage) input.readObject());
+                    handlePlayerMove(null);
                     System.out.println("Handling Input...");
                     sleep(GameState.TICK_RATE);
                 }
@@ -119,7 +120,9 @@ class Game {
                 e.printStackTrace();
             //}catch (ClassNotFoundException e) {
             //    System.out.println("Class not found: " + e);
-            }catch(Exception e){
+            //}catch(Exception e){
+            //    System.out.println(e);
+            }catch(InterruptedException e){
                 System.out.println(e);
             } finally {
                 try {
@@ -137,8 +140,8 @@ class Game {
         
          public synchronized void handlePlayerMove(ClientMessage message){
             Random rand = new Random();
-            float move_x = rand.nextFloat(gameState.ball_x, 3.0f);
-            float move_y = rand.nextFloat(gameState.ball_y, 3.0f);
+            float move_x = rand.nextFloat(gameState.ball_x, gameState.ball_x+3.0f);
+            float move_y = rand.nextFloat(gameState.ball_y, gameState.ball_y+3.0f);
             if(rand.nextBoolean())
                 move_x *= -1;
             if(rand.nextBoolean())

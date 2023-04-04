@@ -8,9 +8,9 @@ import java.io.Serializable;
  * @author logan
  */
 public class ClientMessage implements Serializable {
-    public KeyEvent PlayerMove;
+    public int playerMove;
     
-    public ClientMessage(KeyEvent PlayerMove){
-        this.PlayerMove = PlayerMove;
+    public ClientMessage(KeyEvent playerMove){
+        this.playerMove = playerMove.getKeyCode();
     }
 }

@@ -26,6 +26,8 @@ import java.io.BufferedReader;
 import java.io.EOFException;
 import java.io.InputStreamReader;
 import static java.lang.Thread.sleep;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -125,12 +127,14 @@ public class PongPanel extends JPanel {
         public void run(){
             try {
                 System.out.println("Game started!");
-                panel.getParent().addKeyListener(new KeyEventHandler());
+                panel.addKeyListener(new KeyEventHandler());
+                panel.setFocusable(true);
+                panel.requestFocusInWindow();
 
                 while (true) {
                     try {
                         setState((GameState) input.readObject());
-                        ClientMessage playerMove = new ClientMessage(null);
+                        //ClientMessage playerMove = new ClientMessage(null);
                         //System.out.println("Ball Loc: " + gameState.ball_x + ", " + gameState.ball_y);
                         //output.writeObject(playerMove);
                     } catch (Exception e) {
@@ -165,6 +169,13 @@ public class PongPanel extends JPanel {
         @Override
         public void keyPressed(KeyEvent e) {
             System.out.println(e.getKeyChar() + " pressed");
+            try {
+                ClientMessage playerMove = new ClientMessage(e);
+                output.writeObject(playerMove);
+                output.reset();
+            } catch (IOException ex) {
+                Logger.getLogger(PongPanel.class.getName()).log(Level.SEVERE, null, ex);
+            }
         }
 
         @Override
