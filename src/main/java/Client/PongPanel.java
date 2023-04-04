@@ -20,6 +20,7 @@ import java.net.Socket;
 import java.util.HashSet;
 import javax.swing.JPanel;
 import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.EOFException;
@@ -51,10 +52,11 @@ public class PongPanel extends JPanel {
             setBackground(Color.black);
             int playerStart_y = HEIGHT / 2 - GameState.PLAYER_HEIGHT / 2;
             setState(new GameState(playerStart_y, playerStart_y, WIDTH / 2, HEIGHT / 2));
-            Game game = new Game();
             System.out.println("Game Setup Complete!");
+            
             String response;
-            while(true){
+            Game game = new Game(this);
+            while (true) {
                 try {
                     response = (String) input.readObject();
                     if (response.startsWith("WELCOME")) {
@@ -63,29 +65,22 @@ public class PongPanel extends JPanel {
 
                     if (response.startsWith("PLAYERS CONNECTED")) {
                         System.out.println("Server Message: " + response);
-                        game.start();
+                        game.start();                      
                         break;
                     }
                 } catch (EOFException e) {
-                    sleep(60);
-                } 
+                    sleep(GameState.TICK_RATE);
+                }
+                System.out.println("loop...");
             }
+
             
-            System.out.println("Game Ended!");
         } catch (IOException e) {
             System.out.println("IOException! : " + e);
             e.printStackTrace();
         } catch (Exception e) {
             System.out.println(e);
             e.printStackTrace();
-        } finally {
-            try {
-                if (socket != null) {
-                    socket.close();
-                }
-            } catch (IOException e) {
-                System.out.println(e);
-            }
         }
     }
 
@@ -120,29 +115,62 @@ public class PongPanel extends JPanel {
     }
 
     class Game extends Thread {
-
+        JPanel panel;
+        
+        public Game(JPanel panel){
+            this.panel = panel;
+        }
+        
         @Override
-        public void run() {
-            String response, opponent;
+        public void run(){
             try {
-
+                System.out.println("Game started!");
+                panel.getParent().addKeyListener(new KeyEventHandler());
 
                 while (true) {
                     try {
                         setState((GameState) input.readObject());
                         ClientMessage playerMove = new ClientMessage(null);
-                        output.writeObject(playerMove);
+                        //System.out.println("Ball Loc: " + gameState.ball_x + ", " + gameState.ball_y);
+                        //output.writeObject(playerMove);
                     } catch (Exception e) {
                         System.out.println(e);
                         e.printStackTrace();
-                        sleep(500);
+                        sleep(GameState.TICK_RATE);
                     }
 
                 }
-            } catch(Exception e){
-                
-            }
+            } catch (Exception e) {
 
+            } finally{
+                try {
+                    if (socket != null) {
+                        socket.close();
+                    }
+                } catch (IOException e) {
+                    System.out.println(e);
+                }
+                System.out.println("Game Ended!");
+            }
         }
+    }
+
+    class KeyEventHandler implements KeyListener {
+
+        @Override
+        public void keyTyped(KeyEvent e) {
+            System.out.println(e.getKeyChar() + " keyTyped");
+        }
+
+        @Override
+        public void keyPressed(KeyEvent e) {
+            System.out.println(e.getKeyChar() + " pressed");
+        }
+
+        @Override
+        public void keyReleased(KeyEvent e) {
+            System.out.println(e.getKeyChar() + " released");
+        }
+        
     }
 }

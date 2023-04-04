@@ -14,6 +14,9 @@ import static java.lang.Thread.sleep;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
+
 
 /**
  *
@@ -71,38 +74,58 @@ class Game {
                 input = new ObjectInputStream(socket.getInputStream());
                 System.out.println("Player: " + name + " Connected!");  
                 output.writeObject("WELCOME " + name);
+                output.reset();
             } catch (Exception e){
                 System.out.println(e);
-            } finally {
-                try{
-                    input.close();
-                    output.close();
-                } catch (IOException e) {
-                    System.out.println(e);
-                }
             }
         }
         
         @Override
         public void run() {
-            try{
-                output.writeObject("PLAYERS CONNECTED");
-
-                while(true){
-                    output.writeObject(gameState);
-                    handlePlayerMove((ClientMessage) input.readObject());
+            try {
+                System.out.println("Sending start message to player " + name);
+                synchronized (output) {
+                   output.writeObject("PLAYERS CONNECTED");
+                   output.reset(); 
                 }
                 
+                System.out.println("Message sent to player " + name);
+
+                
+                Timer timer = new Timer();
+                timer.scheduleAtFixedRate(new TimerTask() {
+                    @Override
+                    public void run() {
+                        try {
+                            synchronized (output) {
+                                output.writeObject(gameState);
+                                output.reset();
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }, 0, GameState.TICK_RATE);
+
+                while (true) {
+                    //output.writeObject(gameState);
+                    handlePlayerMove((ClientMessage) input.readObject());
+                    System.out.println("Handling Input...");
+                    sleep(GameState.TICK_RATE);
+                }
+
             } catch (IOException e) {
                 System.out.println("Player died: " + e);
                 e.printStackTrace();
-            }catch (ClassNotFoundException e) {
-                System.out.println("Class not found: " + e);
+            //}catch (ClassNotFoundException e) {
+            //    System.out.println("Class not found: " + e);
             }catch(Exception e){
                 System.out.println(e);
             } finally {
                 try {
                     socket.close();
+                    input.close();
+                    output.close();
                 } catch (IOException e) {
                 }
             }
@@ -112,7 +135,7 @@ class Game {
             this.opponent = opponent;
         }
         
-        public void handlePlayerMove(ClientMessage message){
+         public synchronized void handlePlayerMove(ClientMessage message){
             Random rand = new Random();
             float move_x = rand.nextFloat(gameState.ball_x, 3.0f);
             float move_y = rand.nextFloat(gameState.ball_y, 3.0f);

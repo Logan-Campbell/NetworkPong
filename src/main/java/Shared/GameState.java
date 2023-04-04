@@ -12,7 +12,7 @@ import java.io.Serializable;
  */
 public class GameState implements Serializable {
     public static final int PLAYER_WIDTH = 15, PLAYER_HEIGHT = 50, BALL_WIDTH = 10, PLAYER_OFFSET = 20;
-    public static final int WINDOW_WIDTH = 400, WINDOW_HEIGHT = 200;
+    public static final int WINDOW_WIDTH = 400, WINDOW_HEIGHT = 200, TICK_RATE=16; //TICK_RATE= 16ms
     public float player1_y;
     public float player2_y;
     
