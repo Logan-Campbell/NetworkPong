@@ -106,8 +106,6 @@ public class PongPanel extends JPanel {
         Shape rightPlayer = new Rectangle.Float(WIDTH - (GameState.PLAYER_OFFSET + GameState.PLAYER_WIDTH),
                 gameState.player2_y, GameState.PLAYER_WIDTH, GameState.PLAYER_HEIGHT);
         //Ball
-        //g.drawOval((int) gameState.ball_x, (int) gameState.ball_y,
-        //        GameState.BALL_WIDTH , GameState.BALL_WIDTH);
         Shape ball = new Ellipse2D.Float(gameState.ball_x, gameState.ball_y,
                 GameState.BALL_WIDTH, GameState.BALL_WIDTH);
 
@@ -163,12 +161,22 @@ public class PongPanel extends JPanel {
 
         @Override
         public void keyTyped(KeyEvent e) {
-            System.out.println(e.getKeyChar() + " keyTyped");
+            System.out.println(e.getKeyCode() + " keyTyped");
         }
 
         @Override
         public void keyPressed(KeyEvent e) {
-            System.out.println(e.getKeyChar() + " pressed");
+            //System.out.println(e.getKeyCode() + " pressed");
+           movePlayer(e);
+        }
+
+        @Override
+        public void keyReleased(KeyEvent e) {
+            System.out.println(e.getKeyCode() + " released");
+            
+        }
+        
+        private void movePlayer(KeyEvent e){
             try {
                 ClientMessage playerMove = new ClientMessage(e);
                 output.writeObject(playerMove);
@@ -177,11 +185,5 @@ public class PongPanel extends JPanel {
                 Logger.getLogger(PongPanel.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-
-        @Override
-        public void keyReleased(KeyEvent e) {
-            System.out.println(e.getKeyChar() + " released");
-        }
-        
     }
 }
