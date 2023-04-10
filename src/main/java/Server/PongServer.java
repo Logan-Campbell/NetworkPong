@@ -46,7 +46,7 @@ class Game extends Thread{
     private final int COLLISION_DELAY = 10;
     
     private Player player1, player2;
-    private boolean isGameStarted = false;
+    private boolean isGameRunning = false;
     private boolean isConnected = false;
     
     private GameState gameState;
@@ -55,11 +55,15 @@ class Game extends Thread{
     
     
     public Game() {
+        defaultGameState();
+    }
+    
+    public void defaultGameState(){
         int playerStart_y = GameState.WINDOW_HEIGHT/2 - GameState.PLAYER_HEIGHT/2;
         gameState = new GameState(playerStart_y,playerStart_y, 
                 GameState.WINDOW_WIDTH/2,GameState.WINDOW_HEIGHT/2);
+        startBall();
     }
-    
     
     @Override
     public void run() {
@@ -67,12 +71,10 @@ class Game extends Thread{
             System.out.println("Players not connected!");
             return;
         }
-        
-        startBall();
-        this.isGameStarted = true;
+        //this.isGameRunning = true;
         this.isConnected = true;
         boolean hasCollided = false;
-        
+        String winner = "";
         player1.setOpponent(player2);
         player2.setOpponent(player1);
         player1.start();
@@ -80,7 +82,21 @@ class Game extends Thread{
         
         int collisionDelay = this.COLLISION_DELAY;
         
-        while(isGameStarted && isConnected){
+        //Game Loop
+        while(isConnected){
+            
+            if(!isGameRunning){
+                
+                if(player1.isRestarting && player2.isRestarting){
+                    isGameRunning = true;
+                    defaultGameState();
+                    winner = "";
+                    continue;
+                }
+                delay(GameState.TICK_RATE);
+                continue;
+            }
+            
             hasCollided = moveBall(hasCollided);
             
             if(hasCollided){
@@ -92,11 +108,26 @@ class Game extends Thread{
                 collisionDelay = this.COLLISION_DELAY;
             }
             
-            try {
-                Thread.sleep(GameState.TICK_RATE);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(Game.class.getName()).log(Level.SEVERE, null, ex);
+            winner = checkWin();
+            if(!isGameRunning){
+                try {
+                    player1.endGame(winner);
+                    player2.endGame(winner);
+                } catch (IOException ex) {
+                    System.out.println("Game Ended.");
+                    break;
+                }
             }
+            
+            delay(GameState.TICK_RATE);
+        }
+    }
+    
+    private void delay(int milliseconds){
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(Game.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
@@ -167,22 +198,29 @@ class Game extends Thread{
         return hasCollided;
     }
     
+    //Get what magnitude the ball's y movement should be effected based on
+    //the distance from the center of the paddle.
+    //Further from the center means more of an angle.
     private float ballMagnitude(float paddle_y, float ball_y){
         float paddleCenter = paddle_y + GameState.PLAYER_HEIGHT/2.0f;
+        //Produces negative distance, so that top and bottom are produce correct effect.
         float dist = paddleCenter - ball_y;
+        //Small range to hit the ball straight on, so player dosen't have to be so precise.
         if(dist < 5.0f && dist > -5.0f)
             return 0.0f;
+        //Normalize the distance, return *2 to decent effect.
         float xMax = GameState.PLAYER_HEIGHT/2.0f;
         float normalize = (dist)/(xMax);
-        System.out.println("Normalized: " + normalize*2 + " dist: " + dist);
         return normalize*2;
     }
     
+    //Set ball to center with a random x and y direction.
     private void startBall(){
         Random rand = new Random();
         startBall(rand.nextBoolean());
     }
     
+    //Set ball to the center with a random y direction, and a defined x direction.
     private synchronized void startBall(boolean isDirectionRight){
         GameState reset = new GameState(gameState.player1_y,gameState.player2_y, 
                 GameState.WINDOW_WIDTH/2, GameState.WINDOW_HEIGHT/2, 
@@ -193,15 +231,43 @@ class Game extends Thread{
         
         updateGameState(reset);
     }
+        
+    private float movePlayer(float player_y, int code){
+        if(code == GameState.UP_KEY && player_y > 0 ){
+            return player_move_y * -1.0f;
+        }
+
+        if(code == GameState.DOWN_KEY  && player_y <= GameState.WINDOW_HEIGHT-GameState.PLAYER_HEIGHT){
+            return player_move_y;
+        }
+
+        return 0.0f;
+    }
+    
+    private String checkWin(){
+        String winner = "";
+        if(gameState.player1_score >= GameState.WIN_SCORE){
+            isGameRunning = false;
+            winner = player1.getPlayerName();
+        }
+        
+        if(gameState.player2_score >= GameState.WIN_SCORE){
+            isGameRunning = false;
+            winner = player2.getPlayerName();
+        }
+        
+        return winner;
+    }
     
     class Player extends Thread {
         
-        Socket socket;
-        Player opponent;
-        ObjectInputStream input;
-        ObjectOutputStream output;
-        String name;
-        int player;
+        private Socket socket;
+        private Player opponent;
+        private ObjectInputStream input;
+        private ObjectOutputStream output;
+        private String name;
+        private int player;
+        private boolean isRestarting = false;
         
         public Player(Socket socket, int player, String name){
             this.socket = socket;
@@ -220,6 +286,7 @@ class Game extends Thread{
         
         @Override
         public void run() {
+            isRestarting = false;
             try {
                 System.out.println("Sending start message to player " + name);
                 synchronized (output) {
@@ -227,7 +294,7 @@ class Game extends Thread{
                    output.reset(); 
                 }
                 
-                System.out.println("Message sent to player " + name);
+                System.out.println("Message: 'PLAYERS CONNECTED' sent to player " + name);
 
                 
                 Timer timer = new Timer();
@@ -241,13 +308,24 @@ class Game extends Thread{
                             }
                         } catch (IOException e) {
                             System.out.println("Writing to " + name + " Failed.");
+                            isConnected = false;
                             cancel();
                         }
                     }
                 }, 0, GameState.TICK_RATE);
 
-                while (true) {
-                    handlePlayerMove((ClientMessage) input.readObject());
+                while (isConnected) {
+                    Object playerMessage = input.readObject();
+                    if(playerMessage instanceof String){
+                        String line = (String) playerMessage;
+                        if(line.startsWith("START GAME")){
+                            System.out.println("Recieved form " + this.name + ": " + line);
+                            isRestarting = true;
+                            continue;
+                        }
+                    }
+                    
+                    handlePlayerMove((ClientMessage) playerMessage);
                     sleep(GameState.TICK_RATE);
                 }
 
@@ -261,12 +339,14 @@ class Game extends Thread{
             }catch(InterruptedException e){
                 System.out.println(e);
             } finally {
-                isConnected = false;
-                try {
-                    socket.close();
-                    input.close();
-                    output.close();
-                } catch (IOException e) {
+                if(!isRestarting){
+                    isConnected = false;
+                    try {
+                        socket.close();
+                        input.close();
+                        output.close();
+                    } catch (IOException e) {
+                    }
                 }
             }
         }
@@ -275,8 +355,18 @@ class Game extends Thread{
             this.opponent = opponent;
         }
         
+        public boolean isRestarting(){
+            return this.isRestarting;
+        }
         
-        public synchronized void handlePlayerMove(ClientMessage message){
+        public String getPlayerName(){
+            return this.name;
+        }
+        
+        public void setPlayerName(String name){
+            this.name = name;
+        }
+        private synchronized void handlePlayerMove(ClientMessage message){
             if(player == 0){
                 gameState.player1_y += movePlayer(gameState.player1_y, message.playerMove);
             }else{
@@ -284,16 +374,14 @@ class Game extends Thread{
             }
         }
         
-        public float movePlayer(float player_y, int code){
-            if(code == GameState.UP_KEY && player_y > 0 ){
-                return player_move_y * -1.0f;
-            }
-                
-            if(code == GameState.DOWN_KEY  && player_y <= GameState.WINDOW_HEIGHT-GameState.PLAYER_HEIGHT){
-                return player_move_y;
-            }
-            
-            return 0.0f;
+        public void endGame(String winner) throws IOException {
+            this.isRestarting = false;
+            output.writeObject("GAME END " + winner);
+            output.reset();
+            System.out.println("Sent " + this.name + " Message: 'GAME END " + winner + "'");
+            output.writeObject("RESTART");
+            output.reset();
+            System.out.println("Sent " + this.name + " Message: 'RESTART'");
         }
     }
 }

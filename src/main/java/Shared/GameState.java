@@ -12,9 +12,9 @@ import java.io.Serializable;
  * @author logan
  */
 public class GameState implements Serializable {
-    public static final int PLAYER_WIDTH = 2, PLAYER_HEIGHT = 50, BALL_WIDTH = 10, PLAYER_OFFSET = 20;
-    public static final int WINDOW_WIDTH = 400, WINDOW_HEIGHT = 200, TICK_RATE=16; //TICK_RATE= 16ms
-    public static final int UP_KEY = KeyEvent.VK_UP, DOWN_KEY = KeyEvent.VK_DOWN;
+    public static final int PLAYER_WIDTH = 2, PLAYER_HEIGHT = 50, BALL_WIDTH = 10, PLAYER_OFFSET = 20,
+                            WINDOW_WIDTH = 400, WINDOW_HEIGHT = 200, TICK_RATE=16, //TICK_RATE= 16ms
+                            UP_KEY = KeyEvent.VK_UP, DOWN_KEY = KeyEvent.VK_DOWN, WIN_SCORE = 10;
     public static final float BALL_MOVE_SPEED_X = 3.0f, BALL_MOVE_SPEED_Y = 2.0f;
     public int player1_score;
     public int player2_score;
